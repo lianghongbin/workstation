@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>收货处理</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .form-container {
+            max-width: 700px;
+            margin: 20px auto;
+            background: #fff;
+            padding: 20px 40px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+        }
+        .form-container h2 {
+            margin-top: 0;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .form-group {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        .form-group label {
+            width: 150px;
+            font-weight: bold;
+            margin-right: 10px;
+            text-align: right;
+        }
+        .form-group input,
+        .form-group textarea {
+            flex: 1;
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        .form-group textarea {
+            resize: vertical;
+        }
+        .form-actions {
+            text-align: center;
+            margin-top: 20px;
+        }
+        .form-actions button {
+            padding: 10px 20px;
+            background-color: #4285f4;
+            border: none;
+            border-radius: 4px;
+            color: #fff;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        .form-actions button:hover {
+            background-color: #3367d6;
+        }
+    </style>
+</head>
+<body>
+<div class="form-container">
+    <h2>收货处理</h2>
+    <form id="receiveForm">
+        <!-- 入仓时间（隐藏，默认当前日期） -->
+        <input type="hidden" id="entryDate" name="entryDate">
+
+        <div class="form-group">
+            <label for="customerId">客户代码</label>
+            <input type="text" id="customerId" name="customerId" required>
+        </div>
+
+        <div class="form-group">
+            <label for="packageNo">包裹单号</label>
+            <input type="text" id="packageNo" name="packageNo" required>
+        </div>
+
+        <div class="form-group">
+            <label for="packageQty">单个数量</label>
+            <input type="number" id="packageQty" name="packageQty" list="qtyOptions" min="1" required>
+            <datalist id="qtyOptions">
+                <option value="1"></option>
+                <option value="2"></option>
+                <option value="5"></option>
+                <option value="10"></option>
+                <option value="20"></option>
+                <option value="50"></option>
+            </datalist>
+        </div>
+
+        <div class="form-group">
+            <label for="remark">备  注</label>
+            <textarea id="remark" name="remark" rows="3"></textarea>
+        </div>
+
+        <div class="form-actions">
+            <button type="submit">提   交</button>
+        </div>
+    </form>
+</div>
+
+<script>
+    const { ipcRenderer } = require('electron');
+
+    document.getElementById('receiveForm').addEventListener('submit', (e) => {
+        e.preventDefault();
+
+        const data = {
+            entryDate: document.getElementById('entryDate').value,
+            customerId: document.getElementById('customerId').value,
+            packageNo: document.getElementById('packageNo').value,
+            packageQty: document.getElementById('packageQty').value,
+            remark: document.getElementById('remark').value
+        };
+
+        ipcRenderer.send('save-receive', data);
+
+        alert('已保存到本地数据库，稍后会自动同步到在线文档');
+        e.target.reset();
+    });
+
+    // 页面加载时设置入仓时间为当前日期
+    document.addEventListener('DOMContentLoaded', () => {
+        const entryDateField = document.getElementById('entryDate');
+        const now = new Date();
+        const yyyy = now.getFullYear();
+        const mm = String(now.getMonth() + 1).padStart(2, '0');
+        const dd = String(now.getDate()).padStart(2, '0');
+        entryDateField.value = `${yyyy}-${mm}-${dd}`;
+
+        // 让回车自动跳到下一个输入框
+        const inputs = document.querySelectorAll('#receiveForm input, #receiveForm textarea');
+        inputs.forEach((input, index) => {
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    const next = inputs[index + 1];
+                    if (next) {
+                        next.focus();
+                    } else {
+                        document.querySelector('#receiveForm button[type="submit"]').focus();
+                    }
+                }
+            });
+        });
+    });
+
+
+    //提交数据到本地数据库
+    document.getElementById('receiveForm').addEventListener('submit', (e) => {
+        e.preventDefault();
+
+        const data = {
+            entryDate: document.getElementById('entryDate').value,
+            customerId: document.getElementById('customerId').value,
+            packageNo: document.getElementById('packageNo').value,
+            packageQty: document.getElementById('packageQty').value,
+            remark: document.getElementById('remark').value
+        };
+
+        ipcRenderer.send('save-receive', data);
+
+        alert('已保存到本地数据库，稍后会自动同步到金山文档');
+        e.target.reset();
+    });
+</script>
+</body>
+</html>

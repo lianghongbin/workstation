@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Airsupply · Workstation</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="loading" class="loading">🔄 正在检查在线文档登录状态，请稍候...</div>
+
+<div id="app-container" class="layout content-hidden">
+    <!-- 左侧菜单 -->
+    <aside class="sidebar">
+        <div class="logo">
+            <img src="../image/logo.png" alt="logo">
+        </div>
+        <nav>
+            <ul>
+                <li><a href="#receive" class="menu-item">收货处理</a></li>
+                <li><a href="#query" class="menu-item">收货查询</a></li>
+                <li><a href="#ship" class="menu-item">出货申请</a></li>
+                <li><a href="#print" class="menu-item">标签打印</a></li>
+            </ul>
+        </nav>
+    </aside>
+
+    <!-- 右侧内容区 -->
+    <div class="main-content">
+        <!-- 上部分：抬头 + 面包屑 -->
+        <header class="top-header">
+            <h1>TBA · Workstation</h1>
+            <div class="breadcrumb">首页 / 仓库工作台</div>
+            <button id="sync-now-btn" class="sync-now-btn">立即同步</button>
+        </header>
+
+        <!-- 下部分：主显示区 -->
+        <main class="workspace">
+            <iframe id="content-frame" src="receive.html"></iframe>
+        </main>
+    </div>
+</div>
+
+<script src="renderer.js"></script>
+</body>
+</html>

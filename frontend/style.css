@@ -1,0 +1,154 @@
+/* 整体布局：左侧固定，右侧占满 */
+.layout {
+    display: flex;
+    height: 100vh;
+}
+
+/* 左侧菜单栏 */
+.sidebar {
+    width: 200px;
+    background-color: #f5f5f5;   /* 背景比右侧略深 */
+    border-right: 1px solid #ddd;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+}
+
+/* Logo 区 */
+.sidebar .logo {
+    width: 100%;
+    padding: 15px 10px;
+    box-sizing: border-box;
+    border-bottom: 1px solid #ccc; /* 下方横线 */
+    text-align: center;
+}
+
+.sidebar .logo img {
+    max-width: 100%;
+    max-height: 40px; /* 限制 logo 高度 */
+    display: inline-block;
+}
+
+/* 菜单区 */
+.sidebar nav {
+    margin-top: 20px; /* 菜单整体往下移 */
+    width: 100%;
+}
+
+.sidebar nav ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    width: 100%;
+}
+
+.sidebar nav ul li {
+    margin: 5px 0;
+}
+
+.sidebar nav ul li a {
+    text-decoration: none;
+    color: #333;
+    display: block;
+    padding: 10px 15px;
+    border-radius: 4px;
+    transition: background-color 0.2s, color 0.2s;
+}
+
+/* hover 效果 */
+.sidebar nav ul li a:hover {
+    background-color: #e0e0e0;
+    color: #000;
+}
+
+/* 选中状态 */
+.sidebar nav ul li a.active {
+    background-color: #d0d0d0;
+    color: #000;
+    font-weight: bold;
+}
+
+/* 右侧内容区 */
+.main-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+/* 上部抬头和面包屑 */
+.top-header {
+    background-color: #fafafa;
+    padding: 15px 20px;
+    border-bottom: 1px solid #ddd;
+}
+
+.top-header h1 {
+    margin: 0;
+    font-size: 20px;
+}
+
+.top-header .breadcrumb {
+    margin-top: 5px;
+    font-size: 14px;
+    color: #666;
+}
+
+/* 下部主显示区 */
+.workspace {
+    flex: 1;
+    padding: 20px;
+    overflow: auto;
+}
+
+/* Loading 遮罩层 */
+.loading {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: white;
+    color: #333;
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+}
+
+.workspace {
+    flex: 1;
+    padding: 0;        /* 去掉内边距，避免 iframe 四周留白 */
+    overflow: hidden;  /* 避免出现双滚动条 */
+}
+
+.workspace iframe {
+    width: 100%;
+    height: 100%;
+    border: none;      /* 移除边框 */
+}
+
+.top-header {
+    background-color: #fafafa;
+    padding: 15px 20px;
+    border-bottom: 1px solid #ddd;
+    position: relative; /* 为子元素绝对定位做准备 */
+}
+
+.sync-now-btn {
+    position: absolute;
+    right: 20px;
+    top: 15px;
+    padding: 6px 12px;
+    font-size: 14px;
+    border: none;
+    background-color: #4CAF50;
+    color: white;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.sync-now-btn:hover {
+    background-color: #45a049;
+}
