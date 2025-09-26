@@ -100,8 +100,6 @@
 </div>
 
 <script>
-    const { ipcRenderer } = require('electron');
-
     document.getElementById('receiveForm').addEventListener('submit', (e) => {
         e.preventDefault();
 
@@ -113,7 +111,13 @@
             remark: document.getElementById('remark').value
         };
 
-        ipcRenderer.send('save-receive', data);
+        // 1) 若在顶层直跑（调试用），走 electronAPI
+        if (window.electronAPI && window.electronAPI.sendReceive) {
+            window.electronAPI.sendReceive(data);
+        } else {
+            // 2) 常规：在 iframe 里，发给父窗口
+            window.parent.postMessage({ type: 'save-receive', data }, '*');
+        }
 
         alert('已保存到本地数据库，稍后会自动同步到在线文档');
         e.target.reset();
@@ -145,24 +149,6 @@
         });
     });
 
-
-    //提交数据到本地数据库
-    document.getElementById('receiveForm').addEventListener('submit', (e) => {
-        e.preventDefault();
-
-        const data = {
-            entryDate: document.getElementById('entryDate').value,
-            customerId: document.getElementById('customerId').value,
-            packageNo: document.getElementById('packageNo').value,
-            packageQty: document.getElementById('packageQty').value,
-            remark: document.getElementById('remark').value
-        };
-
-        ipcRenderer.send('save-receive', data);
-
-        alert('已保存到本地数据库，稍后会自动同步到金山文档');
-        e.target.reset();
-    });
 </script>
 </body>
 </html>

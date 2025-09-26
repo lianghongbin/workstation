@@ -37,6 +37,24 @@ class SyncKDocs {
         await this.db.run(`UPDATE ${this.table} SET synced = 1 WHERE id = ?`, [id]);
     }
 
+    // 保存数据到 SQLite（插入一条新记录）
+    async saveData(row) {
+        if (!this.db) throw new Error('Database not connected');
+
+        await this.db.run(
+            `INSERT OR IGNORE INTO ${this.table}
+         (entryDate, customerId, packageNo, packageQty, remark, synced, createdAt)
+         VALUES (?, ?, ?, ?, ?, 0, datetime('now'))`,
+            [
+                row.entryDate,
+                row.customerId,
+                row.packageNo,
+                row.packageQty,
+                row.remark
+            ]
+        );
+    }
+
     // 同步数据到金山文档
     async syncToKDocs() {
         if (!this.db) throw new Error('Database not connected');

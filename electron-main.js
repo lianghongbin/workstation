@@ -7,7 +7,7 @@ const SyncScheduler = require('./playwright/sync-scheduler');
 
 let mainWindow;
 let scheduler;
-
+const db_path = path.join(__dirname, 'db', 'receive.db');
 /**
  * 创建主窗口
  */
@@ -19,13 +19,15 @@ function createWindow() {
         minHeight: 640,
         backgroundColor: '#ffffff',
         webPreferences: {
-            nodeIntegration: true,  // 允许渲染进程用 Node API
-            contextIsolation: false,
-        },
+            preload: path.join(__dirname, 'preload.js'),
+            contextIsolation: true,   // 必须开
+            nodeIntegration: false    // 必须关
+        }
     });
 
     // 加载前端页面
     mainWindow.loadFile(path.join(__dirname, 'frontend', 'main.html'));
+
 
     // 绑定到现有逻辑
     setLoginMainWindow(mainWindow);
@@ -54,7 +56,8 @@ app.whenReady().then(async () => {
 
     // 添加收货表单 → 金山文档任务
     await scheduler.addJob({
-        dbPath: path.join(app.getPath('userData'), 'receive.db'),
+
+        dbPath: db_path,
         table: 'receive_data',
         kdocsUrl: 'https://www.kdocs.cn/l/cr2oJyUr1PbV',
         interval: 5 * 60 * 1000 // 每5分钟执行一次

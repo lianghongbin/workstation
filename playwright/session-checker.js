@@ -28,7 +28,7 @@ async function startSessionWatcher() {
             try {
                 await hideLoginView(); // 关键：把覆盖在上面的在线文档移除
                 mainWindowRef.webContents.send('LoggedIn');
-                console.log('[session-checker] 首次即已登录 -> 已发送 LoggedIn，并隐藏登录视图');
+                console.log('[session-checker] 首次即已登录 -> 已发送 LoggedIn，软件主界面转到软件操作视图');
             } catch (e) {
                 console.error('[session-checker] 首次登录后处理失败：', e);
             }

@@ -34,7 +34,7 @@ async function initDB(dbPath) {
 // 如果独立运行这个文件（node initDB.js），自动执行初始化
 if (require.main === module) {
     // ⚠️ 注意：如果在 Electron 主进程调用，就传 app.getPath('userData')
-    const dbPath = path.join(__dirname, 'receive.db');
+    const dbPath = path.join(__dirname, 'db', 'receive.db');
     initDB(dbPath).catch(err => console.error(err));
 }
 
