@@ -111,17 +111,24 @@
             remark: document.getElementById('remark').value
         };
 
-        // 1) 若在顶层直跑（调试用），走 electronAPI
-        if (window.electronAPI && window.electronAPI.sendReceive) {
+        if (window.electronAPI?.sendReceive) {
             window.electronAPI.sendReceive(data);
         } else {
-            // 2) 常规：在 iframe 里，发给父窗口
             window.parent.postMessage({ type: 'save-receive', data }, '*');
         }
-
-        alert('已保存到本地数据库，稍后会自动同步到在线文档');
-        e.target.reset();
     });
+
+    if (window.electronAPI?.onSaveReceiveResult) {
+        window.electronAPI.onSaveReceiveResult((result) => {
+            console.log('[Renderer] 收到保存结果:', result);
+            if (result.ok) {
+                alert(result.msg || '保存成功');
+                document.getElementById('receiveForm').reset();
+            } else {
+                alert(result.msg || '保存失败');
+            }
+        });
+    }
 
     // 页面加载时设置入仓时间为当前日期
     document.addEventListener('DOMContentLoaded', () => {

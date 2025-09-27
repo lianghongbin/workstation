@@ -1,3 +1,4 @@
+// File: SyncVika.js
 const sqlite3 = require('sqlite3').verbose();
 const { open } = require('sqlite');
 const fetch = require('node-fetch');
@@ -6,10 +7,29 @@ class SyncVika {
     constructor({ dbPath, table }) {
         this.dbPath = dbPath;
         this.table = table;
+
+        // ✅ 仍然使用你现有的写死配置（如需可改为外部传参）
         this.datasheetId = 'dstsnDVylQhjuBiSEo';
         this.apiToken = 'uskI2CEJkCSNZNU2KArVUTU';
+
         this.db = null;
         this._syncing = false;
+
+        // ✅ 速率限制：最多 2 次/秒（最小 500ms 间隔）
+        this._minIntervalMs = 500;
+        this._lastPostAt = 0;
+    }
+
+    // --- 工具: 速率限制 ---
+    async _throttle() {
+        const now = Date.now();
+        const wait = this._minIntervalMs - (now - this._lastPostAt);
+        if (wait > 0) {
+            // 可选：打印等待日志，便于排查
+            // console.log(`[RateLimit] 等待 ${wait}ms 再提交...`);
+            await new Promise(r => setTimeout(r, wait));
+        }
+        this._lastPostAt = Date.now();
     }
 
     // 连接 SQLite 数据库，并初始化表
@@ -31,22 +51,24 @@ class SyncVika {
         `);
     }
 
-    // 保存一条收货数据
-    async saveData(row) {
-        if (!this.db) throw new Error('Database not connected');
-        await this.db.run(
-            `INSERT OR IGNORE INTO ${this.table}
-            (entryDate, customerId, packageNo, packageQty, remark, synced, createdAt)
-            VALUES (?, ?, ?, ?, ?, 0, datetime('now'))`,
-            [
-                row.entryDate || '',
-                row.customerId || '',
-                row.packageNo || '',
-                Number(row.packageQty || 0),
-                row.remark || ''
-            ]
-        );
-        console.log(`[DB] 插入收货数据 packageNo=${row.packageNo}, synced=0`);
+    // 保存一条收货数据（包含本地查重：已同步/未同步都会拦截）
+    async saveData(data) {
+        try {
+            await this.db.run(
+                'INSERT INTO receive_data(entryDate, customerId, packageNo, packageQty, remark, synced, createdAt) VALUES(?,?,?,?,?,?,datetime("now"))',
+                [data.entryDate, data.customerId, data.packageNo, data.packageQty, data.remark, 0]
+            );
+            console.log(`[DB] 插入成功 packageNo=${data.packageNo}`);
+        } catch (err) {
+            if (err.message.includes('UNIQUE constraint failed')) {
+                console.error(`[DB] 插入失败，packageNo=${data.packageNo} 已存在`);
+                // ✅ 抛出错误，让上层 ipcMain 捕获
+                throw new Error(`该单号 ${data.packageNo} 已存在`);
+            } else {
+                console.error(`[DB] 插入失败 packageNo=${data.packageNo}`, err);
+                throw err; // 其他错误继续抛出
+            }
+        }
     }
 
     // 获取未同步的数据
@@ -64,7 +86,7 @@ class SyncVika {
         console.log(`[DB] 标记已同步 id=${id}`);
     }
 
-    // 写入 Vika 表格（使用字段 ID）
+    // 写入 Vika 表格（当前用字段“名称”，如需更稳可切换 fieldKey=id + 字段ID）
     async writeOneRow(row) {
         const payload = {
             records: [
@@ -81,6 +103,9 @@ class SyncVika {
         };
 
         try {
+            // ✅ 在每次提交前做速率限制（确保 ≤2 次/秒）
+            await this._throttle();
+
             const res = await fetch(
                 `https://api.vika.cn/fusion/v1/datasheets/${this.datasheetId}/records?fieldKey=name`,
                 {

@@ -8,6 +8,7 @@ const SyncScheduler = require('./playwright/sync-scheduler');
 let mainWindow;
 let scheduler;
 const db_path = path.join(__dirname, 'db', 'receive.db');
+
 /**
  * 创建主窗口
  */
@@ -26,7 +27,7 @@ function createWindow() {
     });
 
     // 加载前端页面
-    mainWindow.loadFile(path.join(__dirname, 'frontend', 'main.html'));
+    mainWindow.loadFile(path.join(__dirname, 'frontend', 'receive.html'));
 
 
     // 绑定到现有逻辑
@@ -80,12 +81,24 @@ app.on('activate', () => {
  * 渲染进程调用 ipcRenderer.send('save-receive', data)
  */
 ipcMain.on('save-receive', async (event, data) => {
-    const syncer = scheduler.jobs.find(j => j.syncer.table === 'receive_data')?.syncer;
-    if (syncer) {
-        await syncer.saveData(data);
+    try {
+        const syncer = scheduler.jobs.find(j => j.syncer.table === 'receive_data')?.syncer;
+        if (!syncer) {
+            console.error(`[IPC] 没有找到 syncer`);
+            event.sender.send('save-receive-result', { ok: false, msg: '系统错误：未找到同步器' });
+            return;
+        }
+
+        await syncer.saveData(data); // 内部如果抛异常，会进入 catch
         console.log(`[IPC] 保存收货数据成功 packageNo=${data.packageNo}`);
+        event.sender.send('save-receive-result', { ok: true, msg: '保存成功' });
+    } catch (err) {
+        console.error(`[IPC] 保存收货数据失败 packageNo=${data.packageNo}`, err.message);
+        event.sender.send('save-receive-result', { ok: false, msg: err.message || '保存失败' });
+        console.log('[IPC] 已发送 save-receive-result 事件');
     }
 });
+
 
 ipcMain.on('sync-now', async () => {
     if (scheduler) {
