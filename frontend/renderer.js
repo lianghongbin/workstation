@@ -1,75 +1,44 @@
 document.addEventListener('DOMContentLoaded', () => {
-    const loadingDiv = document.getElementById('loading');
-    const appContainer = document.getElementById('app-container');
-    const welcomeMessage = document.getElementById('welcome-message');
+    const overlay = document.getElementById('login-overlay');
+    const form = document.getElementById('login-form');
+    const userInput = document.getElementById('login-username');
+    const passInput = document.getElementById('login-password');
 
-    const contentFrame = document.getElementById('content-frame');
-    const breadcrumb = document.querySelector('.breadcrumb');
-    const menuItems = document.querySelectorAll('.menu-item');
+    if (!overlay || !form) return; // 找不到就什么都不做，避免影响现有逻辑
 
-    // 切换函数：显示主界面
-    const showAppContent = () => {
-        if (loadingDiv) loadingDiv.style.display = 'none';
-        if (appContainer) appContainer.classList.remove('content-hidden');
-    };
+    // （可选）记住登录状态：如需每次都登录，可删除这两行
+    if (localStorage.getItem('__logged_in__') === '1') {
+        overlay.setAttribute('aria-hidden', 'true');
+        return;
+    }
 
-    // 菜单点击事件
-    menuItems.forEach(item => {
-        item.addEventListener('click', (e) => {
-            e.preventDefault();
-            const target = item.getAttribute('href').replace('#', '');
-            if (contentFrame) {
-                contentFrame.src = `${target}.html`;
-            }
-            menuItems.forEach(i => i.classList.remove('active'));
-            item.classList.add('active');
-            if (breadcrumb) {
-                breadcrumb.textContent = `首页 / ${item.textContent.trim()}`;
-            }
-        });
+    form.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const u = (userInput?.value || '').trim();
+        const p = (passInput?.value || '').trim();
+        if (u === '810' && p === '5188') {
+            localStorage.setItem('__logged_in__', '1'); // 如不需要记住，删掉
+            overlay.setAttribute('aria-hidden', 'true'); // 隐藏登录浮层
+            // 不做任何路由或布局修改，主界面继续照你现有逻辑工作
+        } else {
+            alert('账号或密码错误');
+        }
     });
 
-    // 监听：未登录
-    if (window.electronAPI?.onNotLoggedIn) {
-        window.electronAPI.onNotLoggedIn(() => {
-            if (loadingDiv) loadingDiv.style.display = 'none';
-            console.log('[Renderer] 检查完成，未登录。隐藏 Loading，等待登录视图操作。');
-        });
-    }
-
-    // 监听：登录成功
-    if (window.electronAPI?.onLoggedIn) {
-        window.electronAPI.onLoggedIn((event, user) => {
-            showAppContent();
-            if (welcomeMessage) {
-                welcomeMessage.textContent = `欢迎 ${user?.name || '用户'} 使用仓库工作台`;
-            }
-            console.log('[Renderer] 登录成功，显示主界面。');
-        });
-    }
-
-    // 立即同步按钮
-    const syncBtn = document.getElementById('sync-now-btn');
-    if (syncBtn && window.electronAPI?.syncNow) {
+    // 手动同步逻辑
+    const syncBtn = document.getElementById('syncNowBtn');
+    if (syncBtn && window.electronAPI?.manualSync) {
         syncBtn.addEventListener('click', () => {
-            window.electronAPI.syncNow();
+            console.log('[Renderer] 点击立即同步');
+            window.electronAPI.manualSync();
         });
     }
-});
 
-// 监听来自 iframe 的提交消息并转发到主进程
-window.addEventListener('message', (evt) => {
-    const msg = evt.data;
-    if (msg && msg.type === 'save-receive' && msg.data) {
-        try {
-            if (window.electronAPI?.sendReceive) {
-                window.electronAPI.sendReceive(msg.data);
-                console.log('[Renderer] 已转发 save-receive 到主进程:', msg.data);
-            } else {
-                console.warn('[Renderer] electronAPI 未注入，无法转发 save-receive');
-            }
-        } catch (err) {
-            console.error('[Renderer] 转发 save-receive 失败:', err);
-        }
+    // 接收主进程返回的同步结果
+    if (window.electronAPI?.onSyncResult) {
+        window.electronAPI.onSyncResult((res) => {
+            console.log('[Renderer] 收到同步结果:', res);
+            alert(res?.message || (res?.success ? '同步完成' : '同步失败'));
+        });
     }
 });

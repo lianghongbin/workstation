@@ -7,7 +7,6 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<div id="loading" class="loading">🔄 正在检查在线文档登录状态，请稍候...</div>
 
 <div id="app-container" class="layout content-hidden">
     <!-- 左侧菜单 -->
@@ -40,6 +39,27 @@
         </main>
     </div>
 </div>
+
+<!-- 登录浮层：仅新增 -->
+<div id="login-overlay" class="login-overlay" aria-hidden="false">
+    <div class="login-card">
+        <h2 class="login-title">系统登录</h2>
+        <form id="login-form">
+            <div class="login-row">
+                <label for="login-username">账号</label>
+                <input id="login-username" type="text" autocomplete="username" />
+            </div>
+            <div class="login-row">
+                <label for="login-password">密码</label>
+                <input id="login-password" type="password" autocomplete="current-password" />
+            </div>
+            <div class="login-actions">
+                <button id="login-submit" type="submit">登 录</button>
+            </div>
+        </form>
+    </div>
+</div>
+<!-- /登录浮层（仅新增） -->
 
 <script src="renderer.js"></script>
 </body>
