@@ -86,3 +86,9 @@ ipcMain.on('save-receive', async (event, data) => {
         console.log(`[IPC] 保存收货数据成功 packageNo=${data.packageNo}`);
     }
 });
+
+ipcMain.on('sync-now', async () => {
+    if (scheduler) {
+        await scheduler.runAllNow();
+    }
+});

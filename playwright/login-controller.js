@@ -68,6 +68,10 @@ function hideLoginView() {
     }
 }
 
+function getLoginView() {
+    return loginView;
+}
+
 /**
  * 重新计算并设置 BrowserView 的边界。
  */
@@ -97,4 +101,5 @@ module.exports = {
     showLoginView,
     hideLoginView,
     createLoginView,
+    getLoginView
 };

@@ -1,40 +1,43 @@
 const sqlite3 = require('sqlite3').verbose();
 const { open } = require('sqlite');
-const { getLoginView } = require('./login-controller');
+const fetch = require('node-fetch');
 
-class SyncKDocs {
-    constructor({ dbPath, table, kdocsUrl }) {
+class SyncVika {
+    constructor({ dbPath, table }) {
         this.dbPath = dbPath;
         this.table = table;
-        this.kdocsUrl = kdocsUrl;
+        this.datasheetId = 'dstsnDVylQhjuBiSEo';
+        this.apiToken = 'uskI2CEJkCSNZNU2KArVUTU';
         this.db = null;
         this._syncing = false;
     }
 
+    // 连接 SQLite 数据库，并初始化表
     async connectDB() {
         this.db = await open({ filename: this.dbPath, driver: sqlite3.Database });
         console.log(`[DB] 已连接数据库 ${this.dbPath}`);
 
         await this.db.exec(`
-      CREATE TABLE IF NOT EXISTS ${this.table} (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        entryDate TEXT,
-        customerId TEXT,
-        packageNo TEXT UNIQUE,
-        packageQty INTEGER,
-        remark TEXT,
-        synced INTEGER DEFAULT 0,
-        createdAt TEXT DEFAULT (datetime('now'))
-      );
-    `);
+            CREATE TABLE IF NOT EXISTS ${this.table} (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                entryDate TEXT,
+                customerId TEXT,
+                packageNo TEXT UNIQUE,
+                packageQty INTEGER,
+                remark TEXT,
+                synced INTEGER DEFAULT 0,
+                createdAt TEXT DEFAULT (datetime('now'))
+            );
+        `);
     }
 
+    // 保存一条收货数据
     async saveData(row) {
         if (!this.db) throw new Error('Database not connected');
         await this.db.run(
             `INSERT OR IGNORE INTO ${this.table}
-       (entryDate, customerId, packageNo, packageQty, remark, synced, createdAt)
-       VALUES (?, ?, ?, ?, ?, 0, datetime('now'))`,
+            (entryDate, customerId, packageNo, packageQty, remark, synced, createdAt)
+            VALUES (?, ?, ?, ?, ?, 0, datetime('now'))`,
             [
                 row.entryDate || '',
                 row.customerId || '',
@@ -46,6 +49,7 @@ class SyncKDocs {
         console.log(`[DB] 插入收货数据 packageNo=${row.packageNo}, synced=0`);
     }
 
+    // 获取未同步的数据
     async getUnsynced() {
         if (!this.db) throw new Error('Database not connected');
         return this.db.all(
@@ -53,60 +57,55 @@ class SyncKDocs {
         );
     }
 
+    // 标记已同步
     async markSynced(id) {
         if (!this.db) throw new Error('Database not connected');
         await this.db.run(`UPDATE ${this.table} SET synced = 1 WHERE id = ?`, [id]);
         console.log(`[DB] 标记已同步 id=${id}`);
     }
 
-    // 🔹 关键方法：模拟输入到 KDocs 表格
-    async writeOneRow(wc, row) {
-        const payload = [
-            row.entryDate || '',
-            row.customerId || '',
-            row.packageNo || '',
-            String(row.packageQty || ''),
-            row.remark || ''
-        ];
+    // 写入 Vika 表格（使用字段 ID）
+    async writeOneRow(row) {
+        const payload = {
+            records: [
+                {
+                    fields: {
+                        "入仓时间": row.entryDate,
+                        "客户代码": row.customerId,
+                        "入仓包裹单号": row.packageNo,
+                        "单个包裹数量": parseInt(row.packageQty, 10),
+                        "备注": row.remark || ""
+                    }
+                }
+            ]
+        };
 
         try {
-            // 点击表格容器，获取输入焦点
-            const clicked = await wc.executeJavaScript(`
-      (function() {
-        const area = document.querySelector('.et_grid_info');
-        if (area) { area.click(); return true; }
-        return false;
-      })();
-    `);
-
-            if (!clicked) {
-                return { ok: false, msg: '未找到 .et_grid_info' };
-            }
-
-            // 模拟逐列输入
-            for (let i = 0; i < payload.length; i++) {
-                const text = payload[i];
-                for (const ch of text) {
-                    wc.sendInputEvent({ type: 'keyDown', keyCode: ch });
-                    wc.sendInputEvent({ type: 'char', keyCode: ch });
-                    wc.sendInputEvent({ type: 'keyUp', keyCode: ch });
+            const res = await fetch(
+                `https://api.vika.cn/fusion/v1/datasheets/${this.datasheetId}/records?fieldKey=name`,
+                {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${this.apiToken}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(payload)
                 }
-                // Tab 切换到下一列
-                wc.sendInputEvent({ type: 'keyDown', keyCode: 'Tab' });
-                wc.sendInputEvent({ type: 'keyUp', keyCode: 'Tab' });
+            );
+
+            const json = await res.json();
+            if (json.success) {
+                return { ok: true, msg: `写入成功 recordId=${json.data.records[0].recordId}` };
+            } else {
+                return { ok: false, msg: `写入失败 code=${json.code} message=${json.message}` };
             }
-
-            // Enter 换行
-            wc.sendInputEvent({ type: 'keyDown', keyCode: 'Enter' });
-            wc.sendInputEvent({ type: 'keyUp', keyCode: 'Enter' });
-
-            return { ok: true, msg: '写入完成 (模拟按键)' };
         } catch (e) {
             return { ok: false, msg: e.message };
         }
     }
 
-    async syncToKDocs() {
+    // 执行同步任务
+    async syncToVika() {
         if (this._syncing) {
             console.log('[Sync] 已有任务在运行，跳过本次');
             return;
@@ -120,18 +119,10 @@ class SyncKDocs {
                 return;
             }
 
-            const loginView = getLoginView && getLoginView();
-            if (!loginView) {
-                console.error('[Sync] loginView 未初始化');
-                return;
-            }
-
-            const wc = loginView.webContents;
-
             for (const row of rows) {
                 console.log(`[Sync:${this.table}] 尝试写入 packageNo=${row.packageNo}`);
-                const result = await this.writeOneRow(wc, row);
-                console.log(`[Sync:${this.table}] 页面返回结果:`, result);
+                const result = await this.writeOneRow(row);
+                console.log(`[Sync:${this.table}] API 返回结果:`, result);
 
                 if (result.ok) {
                     await this.markSynced(row.id);
@@ -150,4 +141,4 @@ class SyncKDocs {
     }
 }
 
-module.exports = SyncKDocs;
+module.exports = SyncVika;
