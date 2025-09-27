@@ -1,5 +1,6 @@
 // File: sync-scheduler.js  (建议统一这个名字)
 const SyncVika = require('./SyncVika');
+const path = require("path");
 
 class SyncScheduler {
     constructor() {
@@ -7,7 +8,7 @@ class SyncScheduler {
     }
 
     async addJob({ dbPath, table, datasheetId, apiToken, interval = 5 * 60 * 1000 }) {
-        const syncer = new SyncVika({ dbPath, table });
+        const syncer = new SyncVika("receive_data", path.join(__dirname, "../db/receive.db")); // ✅ 加上 dbPath
         await syncer.connectDB();
         console.log(`[Scheduler] 已添加同步任务`);
 

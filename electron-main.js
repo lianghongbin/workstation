@@ -1,107 +1,81 @@
-// File: electron-main.js
-const { app, BrowserWindow, ipcMain } = require('electron');
-const path = require('path');
-const { setMainWindow: setLoginMainWindow, resizeLoginViewIfAny } = require('./playwright/login-controller');
-const { setMainWindow: setCheckerMainWindow, startSessionWatcher } = require('./playwright/session-checker');
-const SyncScheduler = require('./playwright/sync-scheduler');
+const { app, BrowserWindow, ipcMain } = require("electron");
+const path = require("path");
+const SyncScheduler = require("./playwright/sync-scheduler");
 
 let mainWindow;
-let scheduler;
-const db_path = path.join(__dirname, 'db', 'receive.db');
+const scheduler = new SyncScheduler();
 
-/**
- * 创建主窗口
- */
 function createWindow() {
     mainWindow = new BrowserWindow({
-        width: 1280,
+        width: 1200,
         height: 800,
-        minWidth: 1024,
-        minHeight: 640,
-        backgroundColor: '#ffffff',
         webPreferences: {
-            preload: path.join(__dirname, 'preload.js'),
-            contextIsolation: true,   // 必须开
-            nodeIntegration: false    // 必须关
-        }
+            preload: path.join(__dirname, "preload.js"),
+            contextIsolation: true,
+            nodeIntegration: false,
+        },
     });
 
-    // 加载前端页面
-    mainWindow.loadFile(path.join(__dirname, 'frontend', 'receive.html'));
+    // ✅ 启动直接加载 receive.html
+    const receiveHtml = path.join(__dirname,'frontend', "main.html");
+    console.log("[Main] loading HTML:", receiveHtml);
+    mainWindow.loadFile(receiveHtml);
 
+    // ✅ 数据库绝对路径
+    const dbPath = path.join(__dirname, "db", "receive.db");
+    console.log("[Main] DB Path:", dbPath);
 
-    // 绑定到现有逻辑
-    setLoginMainWindow(mainWindow);
-    setCheckerMainWindow(mainWindow);
-    startSessionWatcher();
+    scheduler.addJob("receive_data", dbPath, "receive_data");
 
-    mainWindow.on('resize', () => {
-        try {
-            resizeLoginViewIfAny();
-        } catch {}
-    });
-
-    mainWindow.on('closed', () => {
+    mainWindow.on("closed", () => {
         mainWindow = null;
     });
 }
 
-/**
- * 应用启动
- */
-app.whenReady().then(async () => {
-    createWindow();
+app.on("ready", createWindow);
 
-    // 初始化同步调度器
-    scheduler = new SyncScheduler();
-
-    // 添加收货表单 → 金山文档任务
-    await scheduler.addJob({
-
-        dbPath: db_path,
-        table: 'receive_data',
-        kdocsUrl: 'https://www.kdocs.cn/l/cr2oJyUr1PbV',
-        interval: 5 * 60 * 1000 // 每5分钟执行一次
-    });
+app.on("window-all-closed", () => {
+    if (process.platform !== "darwin") {
+        app.quit();
+    }
 });
 
-/**
- * 退出应用
- */
-app.on('window-all-closed', () => {
-    if (process.platform !== 'darwin') app.quit();
-});
-
-app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow();
+app.on("activate", () => {
+    if (mainWindow === null) {
+        createWindow();
+    }
 });
 
 /**
  * IPC 通道：保存表单数据
- * 渲染进程调用 ipcRenderer.send('save-receive', data)
  */
-ipcMain.on('save-receive', async (event, data) => {
-    try {
-        const syncer = scheduler.jobs.find(j => j.syncer.table === 'receive_data')?.syncer;
-        if (!syncer) {
-            console.error(`[IPC] 没有找到 syncer`);
-            event.sender.send('save-receive-result', { ok: false, msg: '系统错误：未找到同步器' });
-            return;
-        }
+ipcMain.on("save-receive", async (event, data) => {
+    const syncer = scheduler.jobs.find(j => j.syncer.table === "receive_data")?.syncer;
+    if (!syncer) {
+        console.error("[IPC] 没有找到 syncer");
+        event.sender.send("save-receive-result", { success: false, message: "没有找到同步器" });
+        return;
+    }
 
-        await syncer.saveData(data); // 内部如果抛异常，会进入 catch
+    try {
+        await syncer.saveData(data);
         console.log(`[IPC] 保存收货数据成功 packageNo=${data.packageNo}`);
-        event.sender.send('save-receive-result', { ok: true, msg: '保存成功' });
+        event.sender.send("save-receive-result", { success: true, message: "保存成功" });
     } catch (err) {
         console.error(`[IPC] 保存收货数据失败 packageNo=${data.packageNo}`, err.message);
-        event.sender.send('save-receive-result', { ok: false, msg: err.message || '保存失败' });
-        console.log('[IPC] 已发送 save-receive-result 事件');
+        event.sender.send("save-receive-result", { success: false, message: err.message });
     }
 });
 
-
-ipcMain.on('sync-now', async () => {
-    if (scheduler) {
+/**
+ * IPC 通道：手动触发立即同步
+ */
+ipcMain.on("run-sync-now", async (event) => {
+    try {
         await scheduler.runAllNow();
+        event.sender.send("sync-result", { success: true, message: "同步完成" });
+    } catch (err) {
+        console.error("[IPC] 手动同步失败:", err.message);
+        event.sender.send("sync-result", { success: false, message: err.message });
     }
 });

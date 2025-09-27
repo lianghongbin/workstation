@@ -52,6 +52,7 @@
             color: #fff;
             cursor: pointer;
             font-size: 16px;
+            min-width: 140px;
         }
         .form-actions button:hover {
             background-color: #3367d6;
@@ -66,17 +67,17 @@
         <input type="hidden" id="entryDate" name="entryDate">
 
         <div class="form-group">
-            <label for="customerId">客户代码</label>
+            <label for="customerId">客户代码：</label>
             <input type="text" id="customerId" name="customerId" required>
         </div>
 
         <div class="form-group">
-            <label for="packageNo">包裹单号</label>
+            <label for="packageNo">包裹单号：</label>
             <input type="text" id="packageNo" name="packageNo" required>
         </div>
 
         <div class="form-group">
-            <label for="packageQty">单个数量</label>
+            <label for="packageQty">单个数量：</label>
             <input type="number" id="packageQty" name="packageQty" list="qtyOptions" min="1" required>
             <datalist id="qtyOptions">
                 <option value="1"></option>
@@ -89,7 +90,7 @@
         </div>
 
         <div class="form-group">
-            <label for="remark">备  注</label>
+            <label for="remark">备&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;注：</label>
             <textarea id="remark" name="remark" rows="3"></textarea>
         </div>
 
@@ -100,6 +101,7 @@
 </div>
 
 <script>
+    // 提交处理：优先走 electronAPI；拿不到则 postMessage 给父窗口（renderer.js 会转发）
     document.getElementById('receiveForm').addEventListener('submit', (e) => {
         e.preventDefault();
 
@@ -114,48 +116,62 @@
         if (window.electronAPI?.sendReceive) {
             window.electronAPI.sendReceive(data);
         } else {
+            // 降级：发给父页面，由父页面转发给主进程（renderer.js 已新增桥接）
             window.parent.postMessage({ type: 'save-receive', data }, '*');
         }
     });
 
+    // 结果监听（两路）：
+    // 1) 如果 iframe 内就有 electronAPI，则直接监听 save-receive-result
     if (window.electronAPI?.onSaveReceiveResult) {
-        window.electronAPI.onSaveReceiveResult((result) => {
-            console.log('[Renderer] 收到保存结果:', result);
-            if (result.ok) {
-                alert(result.msg || '保存成功');
-                document.getElementById('receiveForm').reset();
-            } else {
-                alert(result.msg || '保存失败');
-            }
-        });
+        window.electronAPI.onSaveReceiveResult(handleSaveResult);
+    }
+    // 2) 如果 iframe 内没有 electronAPI，则由父页面通过 postMessage 把结果转回来
+    window.addEventListener('message', (e) => {
+        if (e?.data?.type === 'save-receive-result') {
+            handleSaveResult(e.data.result);
+        }
+    });
+
+    // 统一的保存结果处理（注意：主进程返回的是 success/message）
+    function handleSaveResult(result) {
+        console.log('[Receive] 收到保存结果：', result);
+        if (result?.success) {
+            alert(result.message || '保存成功');
+            document.getElementById('receiveForm').reset();
+            // 重新设置隐藏日期为当天
+            setToday();
+        } else {
+            alert(result?.message || '保存失败');
+        }
     }
 
     // 页面加载时设置入仓时间为当前日期
-    document.addEventListener('DOMContentLoaded', () => {
+    function setToday() {
         const entryDateField = document.getElementById('entryDate');
         const now = new Date();
         const yyyy = now.getFullYear();
         const mm = String(now.getMonth() + 1).padStart(2, '0');
         const dd = String(now.getDate()).padStart(2, '0');
         entryDateField.value = `${yyyy}-${mm}-${dd}`;
+    }
 
-        // 让回车自动跳到下一个输入框
+    document.addEventListener('DOMContentLoaded', () => {
+        setToday();
+
+        // 回车自动跳到下一个输入框
         const inputs = document.querySelectorAll('#receiveForm input, #receiveForm textarea');
         inputs.forEach((input, index) => {
             input.addEventListener('keydown', (e) => {
                 if (e.key === 'Enter') {
                     e.preventDefault();
                     const next = inputs[index + 1];
-                    if (next) {
-                        next.focus();
-                    } else {
-                        document.querySelector('#receiveForm button[type="submit"]').focus();
-                    }
+                    if (next) next.focus();
+                    else document.querySelector('#receiveForm button[type="submit"]').focus();
                 }
             });
         });
     });
-
 </script>
 </body>
 </html>

@@ -157,12 +157,13 @@
 .login-overlay {
     position: fixed;
     inset: 0;
-    background: rgba(245, 247, 250, 0.96);
+    background: #fff;      /* ✅ 改成纯白，不透明 */
     display: flex;
     align-items: center;
     justify-content: center;
     z-index: 9999; /* 盖在主界面之上 */
 }
+
 .login-overlay[aria-hidden="true"] {
     display: none;
 }
@@ -226,4 +227,18 @@
 }
 #login-submit:hover {
     background: #357ab7;
+}
+
+/* [新增] 退出登录链接样式 */
+.logout-link {
+    margin-top: auto;       /* 固定在侧边栏底部 */
+    padding: 15px 20px;
+}
+.logout-link a {
+    text-decoration: none;
+    color: #c00;
+    font-size: 14px;
+}
+.logout-link a:hover {
+    text-decoration: underline;
 }
