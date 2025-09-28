@@ -10,6 +10,7 @@ const VikaShipment = require("./playwright/VikaShipment"); // 出货 ship_data  
 let mainWindow;
 const scheduler = new SyncScheduler();
 
+
 function createWindow() {
     mainWindow = new BrowserWindow({
         width: 1200,
@@ -20,6 +21,10 @@ function createWindow() {
             nodeIntegration: false,
         },
     });
+
+    //开启开发工具调试界面
+    //mainWindow.webContents.openDevTools();
+
 
     // ✅ 启动加载主界面（保持不变）
     const mainHtml = path.join(__dirname, "frontend", "main.html");
@@ -121,5 +126,22 @@ ipcMain.on("run-sync-now", async (event) => {
     } catch (err) {
         console.error("[IPC] 手动同步失败:", err.message);
         event.sender.send("sync-result", { success: false, message: err.message });
+    }
+});
+
+// 出货申请查询
+// 出货申请查询
+ipcMain.handle("query-shipment-data", async (event, { page, pageSize, search }) => {
+    const syncer = scheduler.jobs.find(j => j.syncer.table === "ship_data")?.syncer;
+    if (!syncer) {
+        console.error("[IPC] 没有找到 ship_data 的 syncer");
+        return { page: 1, totalPages: 0, records: [] };
+    }
+
+    try {
+        return await syncer.queryShipments(page, pageSize, search);
+    } catch (err) {
+        console.error("[IPC] 查询出货数据失败:", err.message);
+        return { page: 1, totalPages: 0, records: [], error: err.message };
     }
 });

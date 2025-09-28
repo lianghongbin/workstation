@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <title>出货申请查询</title>
+    <link rel="stylesheet" href="apply-query.css">
+</head>
+<body>
+<div class="query-container">
+    <label>产品条码：</label><input type="text" id="searchInput" placeholder="输入产品条码查询">
+    <button id="searchBtn">搜索</button>
+</div>
+
+<table id="shipmentTable">
+    <thead>
+    <tr>
+        <th>产品条码</th>
+        <th>箱数</th>
+        <th>QTY</th>
+        <th>提交时间</th>
+        <th>附件</th>
+        <th>操作</th>
+    </tr>
+    </thead>
+    <!-- ✅ 必须加上 tbody，否则 JS 里 querySelector("#shipmentTable tbody") 会是 null -->
+    <tbody>
+    </tbody>
+</table>
+
+<div id="pagination"></div>
+
+<script src="apply-query.js"></script></body>
+</html>

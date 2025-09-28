@@ -1,0 +1,66 @@
+/* 查询容器 */
+.query-container {
+    margin: 20px 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.query-container input {
+    padding: 6px 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+.query-container button {
+    padding: 6px 16px;
+    background-color: #007bff;
+    border: none;
+    border-radius: 4px;
+    color: #fff;
+    cursor: pointer;
+}
+
+.query-container button:hover {
+    background-color: #0056b3;
+}
+
+/* 表格样式 */
+#shipmentTable {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
+}
+
+#shipmentTable th,
+#shipmentTable td {
+    border: 1px solid #ddd;
+    padding: 8px;
+    text-align: center;
+}
+
+#shipmentTable th {
+    background-color: #f2f2f2;
+    font-weight: bold;
+}
+
+/* 分页样式 */
+#pagination {
+    margin-top: 15px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 12px;
+}
+
+#pagination button {
+    padding: 6px 12px;
+    border: 1px solid #ccc;
+    background: #f9f9f9;
+    cursor: pointer;
+}
+
+#pagination button:hover {
+    background: #e0e0e0;
+}

@@ -141,6 +141,46 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+
+    /** ------------------ 出货查询 postMessage 桥接（新增） ------------------ */
+// 场景：iframe(apply-query.html) 中拿不到 window.electronAPI
+// 这时它会 postMessage 到父窗口。这里把查询请求转发到主进程，
+// 并把查询结果再 postMessage 回 iframe。
+    window.addEventListener('message', async (e) => {
+        const data = e?.data;
+        if (!data || typeof data !== 'object') return;
+
+        // [原有] 子页面请求保存收货
+        if (data.type === 'save-receive' && data.data) {
+            if (window.electronAPI?.sendReceive) {
+                window.electronAPI.sendReceive(data.data);
+            }
+        }
+
+        // [新增] 子页面请求查询出货
+        if (data.type === 'query-shipment-data' && data.params && data.channel) {
+            if (window.electronAPI?.queryShipmentData) {
+                try {
+                    const result = await window.electronAPI.queryShipmentData(data.params);
+                    console.log('[Renderer] 查询结果:', result);
+                    // 转发回 iframe（带上 channel 匹配）
+                    e.source.postMessage({
+                        type: 'query-shipment-result',
+                        result,
+                        channel: data.channel
+                    }, '*');
+                } catch (err) {
+                    console.error('[Renderer] 查询失败:', err);
+                    e.source.postMessage({
+                        type: 'query-shipment-result',
+                        result: { error: err.message },
+                        channel: data.channel
+                    }, '*');
+                }
+            }
+        }
+    });
+
     // 当 preload 把 "save-receive-result" 事件转给前端时，
     // 我们再把结果转发给当前工作区 iframe，这样 receive.html 的降级监听能收到。
     if (window.electronAPI?.onSaveReceiveResult) {

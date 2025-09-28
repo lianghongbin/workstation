@@ -21,4 +21,6 @@ contextBridge.exposeInMainWorld("electronAPI", {
     sendShip: (data) => ipcRenderer.send('save-shipment', data),
     onSaveShipResult: (cb) => ipcRenderer.on('save-shipment-result', (_e, payload) => cb(payload)),
 
+    //申请查询
+    queryShipmentData: (params) => ipcRenderer.invoke("query-shipment-data", params),
 });
