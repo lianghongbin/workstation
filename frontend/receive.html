@@ -57,6 +57,34 @@
         .form-actions button:hover {
             background-color: #3367d6;
         }
+
+        /* ---------- [MOD] 新增：表单下方消息区样式（成功/错误/淡出） ---------- */
+        .form-message {
+            margin: 16px auto 0;
+            max-width: 700px;
+            padding: 10px 14px;
+            border-radius: 6px;
+            font-size: 14px;
+            line-height: 1.6;
+            display: none;              /* 默认隐藏，由脚本控制显示/隐藏 */
+            transition: opacity .25s;   /* 淡出过渡 */
+        }
+        .form-message.is-success {
+            display: block;
+            background: #ecf8f0;
+            color: #0a7a3d;
+            border: 1px solid #bfe8cf;
+        }
+        .form-message.is-error {
+            display: block;
+            background: #fdecec;
+            color: #b00020;
+            border: 1px solid #f5b5b5;
+        }
+        .form-message.fade-out {
+            opacity: 0;
+        }
+        /* ---------- [MOD] 结束 ---------- */
     </style>
 </head>
 <body>
@@ -98,7 +126,12 @@
             <button type="submit">提   交</button>
         </div>
     </form>
+
 </div>
+
+<!-- [MOD] 新增：表单下方消息显示区（默认隐藏，脚本控制） -->
+<div id="formMessage" class="form-message" role="status" aria-live="polite"></div>
+<!-- [MOD] 结束 -->
 
 <script>
     // 提交处理：优先走 electronAPI；拿不到则 postMessage 给父窗口（renderer.js 会转发）
@@ -133,16 +166,50 @@
         }
     });
 
+    // ---------- [MOD] 修复消息区再次点击不显示的问题：确保每次显示都把 display 设回 block ----------
+    let __msgTimer = null;
+    function showFormMessage(text, isError) {
+        const box = document.getElementById('formMessage');
+        if (!box) return;
+
+        // 清掉上一次的计时器
+        if (__msgTimer) {
+            clearTimeout(__msgTimer);
+            __msgTimer = null;
+        }
+
+        // 关键：无论当前处于什么状态，都先重置为“可见、未淡出”
+        box.style.display = 'block';                 // ★ 修复点：覆盖之前的 display:none
+        box.classList.remove('fade-out', 'is-success', 'is-error');
+
+        // 设置内容与状态类
+        box.textContent = text || '';
+        box.classList.add(isError ? 'is-error' : 'is-success');
+
+        // 5 秒后开始淡出；淡出动画结束再彻底隐藏
+        __msgTimer = setTimeout(() => {
+            box.classList.add('fade-out');
+            setTimeout(() => {
+                box.classList.remove('is-success', 'is-error', 'fade-out');
+                box.style.display = 'none';          // 隐藏，为下一次做准备
+            }, 300); // 与 CSS transition 对齐
+        }, 5000);
+    }
+    // ---------- [MOD] 结束 ----------
+
     // 统一的保存结果处理（注意：主进程返回的是 success/message）
     function handleSaveResult(result) {
         console.log('[Receive] 收到保存结果：', result);
         if (result?.success) {
-            alert(result.message || '保存成功');
+            // [MOD] 改为在表单下方显示成功提示，并自动隐藏
+            showFormMessage(result.message || '保存成功', false);
+
             document.getElementById('receiveForm').reset();
             // 重新设置隐藏日期为当天
             setToday();
         } else {
-            alert(result?.message || '保存失败');
+            // [MOD] 改为在表单下方显示错误提示（红色），并自动隐藏
+            showFormMessage(result?.message || '保存失败', true);
         }
     }
 

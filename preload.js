@@ -16,4 +16,9 @@ contextBridge.exposeInMainWorld("electronAPI", {
     /** 同步结果事件：主进程通过 "sync-result" 回传 */
     onSyncResult: (callback) =>
         ipcRenderer.on("sync-result", (_event, result) => callback(result)),
+
+    // [MOD] ===== 新增：出货 =====
+    sendShip: (data) => ipcRenderer.send('save-shipment', data),
+    onSaveShipResult: (cb) => ipcRenderer.on('save-shipment-result', (_e, payload) => cb(payload)),
+
 });
