@@ -125,24 +125,9 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     if (menuItems.length > 0) menuItems[0].classList.add('active');
 
-    /** ------------------ 收货表单 postMessage 桥接（保持不变） ------------------ */
-    // 场景：iframe(receive.html) 中可能拿不到 window.electronAPI
-    // 这时它会 postMessage 到父窗口。这里把消息转发到主进程，
-    // 并把保存结果再 postMessage 回 iframe（作为兜底）。
-    window.addEventListener('message', (e) => {
-        const data = e?.data;
-        if (!data || typeof data !== 'object') return;
-
-        // 子页面请求保存
-        if (data.type === 'save-receive' && data.data) {
-            if (window.electronAPI?.sendReceive) {
-                window.electronAPI.sendReceive(data.data);
-            }
-        }
-    });
 
 
-    /** ------------------ 出货查询 postMessage 桥接（新增） ------------------ */
+    /** ------------------ 出货保存、查询 postMessage 桥接（新增） ------------------ */
 // 场景：iframe(apply-query.html) 中拿不到 window.electronAPI
 // 这时它会 postMessage 到父窗口。这里把查询请求转发到主进程，
 // 并把查询结果再 postMessage 回 iframe。
