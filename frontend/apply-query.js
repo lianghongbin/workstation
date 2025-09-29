@@ -60,18 +60,34 @@ document.addEventListener("DOMContentLoaded", () => {
                         <td>${r.barcode || ""}</td>
                         <td>${r.cartons || ""}</td>
                         <td>${r.qty || ""}</td>
-                        <td>${r.createdAt ? new Date(r.createdAt).toLocaleString() : ""}</td>
+                        <td>${r.createdAt ? new Date(r.createdAt).toLocaleString('en-US', { hour12: false }): ""}</td>
                         <td>${attachments}</td>
                         <td>
-                            <a href="javascript:void(0)" class="view-label">查看</a>  
-                            <a href="javascript:void(0)" class="view-label">打印</a>                        
-                      
+                            <a href="javascript:void(0)" class="view-label">查看</a>  &nbsp;
+                            <a href="javascript:void(0)" class="print-link">打印</a>                        
                         </td>
                     `;
                     shipmentTableBody.appendChild(row);
                     // 动态绑定 click 事件
                     const link = row.querySelector('.view-label');
                     link.addEventListener('click', () => showOverlay(r));
+                    // 绑定打印事件
+                    const printLink = row.querySelector('.print-link');
+                    printLink.addEventListener('click', async () => {
+
+                        if(!confirm("确认打印面单？")) {
+                            return;
+                        }
+
+                        try {
+                            await printLabel(r);
+                            console.log("[Renderer] 打印任务提交成功");
+                        } catch (err) {
+                            console.error("[Renderer] 打印失败:", err);
+                        }
+
+                    });
+
                     shipmentTableBody.appendChild(row);
                 });
             } else {
@@ -143,9 +159,27 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 function printLabel(record) {
-    // 把数据序列化放到 URL 参数
-    const data = encodeURIComponent(JSON.stringify(record));
-    window.open(`../template/label.html?data=${data}`, "_blank", "width=800,height=600");
+    return new Promise((resolve, reject) => {
+        const channel = `print-label-response-${Math.random().toString(36).slice(2)}`;
+
+        const listener = (e) => {
+            if (e.data?.type === 'print-label-result' && e.data.channel === channel) {
+                window.removeEventListener('message', listener);
+                if (e.data.result?.error) {
+                    reject(new Error(e.data.result.error));
+                } else {
+                    resolve(e.data.result);
+                }
+            }
+        };
+        window.addEventListener('message', listener);
+
+        window.parent.postMessage({
+            type: 'print-label',
+            record,
+            channel
+        }, '*');
+    });
 }
 
 // 关闭覆盖层

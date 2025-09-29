@@ -164,6 +164,28 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
         }
+
+        // [新增] 子页面请求打印面单
+        if (data.type === 'print-label' && data.record && data.channel) {
+            if (window.electronAPI?.printLabel) {
+                try {
+                    await window.electronAPI.printLabel(data.record);
+                    console.log('[Renderer] 打印任务提交成功');
+                    e.source.postMessage({
+                        type: 'print-label-result',
+                        result: { success: true },
+                        channel: data.channel
+                    }, '*');
+                } catch (err) {
+                    console.error('[Renderer] 打印失败:', err);
+                    e.source.postMessage({
+                        type: 'print-label-result',
+                        result: { error: err.message },
+                        channel: data.channel
+                    }, '*');
+                }
+            }
+        }
     });
 
     // 当 preload 把 "save-receive-result" 事件转给前端时，

@@ -23,4 +23,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
 
     //申请查询
     queryShipmentData: (params) => ipcRenderer.invoke("query-shipment-data", params),
+
+    //打印接口
+    printLabel: (record) => ipcRenderer.send('print-label', record), // 确保打印接口已定义
 });

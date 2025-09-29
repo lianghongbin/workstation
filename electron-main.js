@@ -2,6 +2,7 @@
 const { app, BrowserWindow, ipcMain } = require("electron");
 const path = require("path");
 const SyncScheduler = require("./playwright/sync-scheduler");
+const printService = require("./playwright/print-service")
 
 // [MOD] 新增：引入两个同步器（收货沿用你现有 SyncVika；出货使用 VikaShipment）
 const SyncVika = require("./playwright/SyncVika");        // 收货 receive_data -> Vika 收货表
@@ -23,7 +24,7 @@ function createWindow() {
     });
 
     //开启开发工具调试界面
-    //mainWindow.webContents.openDevTools();
+    mainWindow.webContents.openDevTools();
 
 
     // ✅ 启动加载主界面（保持不变）
@@ -130,7 +131,6 @@ ipcMain.on("run-sync-now", async (event) => {
 });
 
 // 出货申请查询
-// 出货申请查询
 ipcMain.handle("query-shipment-data", async (event, { page, pageSize, search }) => {
     const syncer = scheduler.jobs.find(j => j.syncer.table === "ship_data")?.syncer;
     if (!syncer) {
@@ -143,5 +143,16 @@ ipcMain.handle("query-shipment-data", async (event, { page, pageSize, search }) 
     } catch (err) {
         console.error("[IPC] 查询出货数据失败:", err.message);
         return { page: 1, totalPages: 0, records: [], error: err.message };
+    }
+});
+
+// IPC 通道：委托打印任务给 printService
+ipcMain.on('print-label', async (event, record) => {
+    try {
+        await printService.printLabel(record);
+        event.sender.send('print-label-result', { success: true, message: "打印任务已提交" });
+    } catch (error) {
+        console.error("[Main] 打印失败:", error.message);
+        event.sender.send('print-label-result', { success: false, message: error.message });
     }
 });
