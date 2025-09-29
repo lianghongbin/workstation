@@ -62,8 +62,16 @@ document.addEventListener("DOMContentLoaded", () => {
                         <td>${r.qty || ""}</td>
                         <td>${r.createdAt ? new Date(r.createdAt).toLocaleString() : ""}</td>
                         <td>${attachments}</td>
-                        <td>查看</td>
+                        <td>
+                            <a href="javascript:void(0)" class="view-label">查看</a>  
+                            <a href="javascript:void(0)" class="view-label">打印</a>                        
+                      
+                        </td>
                     `;
+                    shipmentTableBody.appendChild(row);
+                    // 动态绑定 click 事件
+                    const link = row.querySelector('.view-label');
+                    link.addEventListener('click', () => showOverlay(r));
                     shipmentTableBody.appendChild(row);
                 });
             } else {
@@ -96,4 +104,51 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // [新增] 页面加载时默认查询
     loadData(currentPage);
+
+
+    /**
+     * 打印相关
+     */
+    // 打开覆盖层并展示面单
+    function showOverlay(record) {
+        const overlay = document.getElementById("overlay");
+        const overlayContent = document.getElementById("overlay-content");
+
+        overlayContent.innerHTML = `
+        <span class="overlay-close" onclick="closeOverlay()">×</span>
+        <h3>面单内容</h3>
+        <table class="label-table">
+            <tr><th>产品条码</th><td>${record.barcode || ""}</td></tr>
+            <tr><th>箱数</th><td>${record.cartons || ""}</td></tr>
+            <tr><th>数量</th><td>${record.qty || ""}</td></tr>
+            <tr><th>重量</th><td>${record.weight || ""} lb</td></tr>
+            <tr><th>箱规</th><td>${record.spec || ""}</td></tr>
+            <tr><th>备注</th><td>${record.remark || ""}</td></tr>
+        </table>
+            <button class="print-btn">打印面单</button>    `;
+
+        // 动态绑定点击事件
+        // 确保 DOM 更新后绑定事件
+        setTimeout(() => {
+            const printBtn = overlayContent.querySelector('.print-btn');
+            if (printBtn) {
+                printBtn.addEventListener('click', () => printLabel(record));
+            } else {
+                console.error("[Renderer] 打印按钮未找到");
+            }
+        }, 0);
+
+        overlay.style.display = "flex";
+    }
 });
+
+function printLabel(record) {
+    // 把数据序列化放到 URL 参数
+    const data = encodeURIComponent(JSON.stringify(record));
+    window.open(`../template/label.html?data=${data}`, "_blank", "width=800,height=600");
+}
+
+// 关闭覆盖层
+function closeOverlay() {
+    document.getElementById("overlay").style.display = "none";
+}
