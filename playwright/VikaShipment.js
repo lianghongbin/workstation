@@ -1,6 +1,4 @@
-const sqlite3 = require("sqlite3");
-const {open} = require("sqlite");
-const fetch = require("node-fetch");
+const Database = require("better-sqlite3");
 
 class VikaShipment {
     constructor(table, dbPath) {
@@ -27,26 +25,27 @@ class VikaShipment {
     async connectDB() {
         // [ADD] 若已连接则复用，避免重复打开
         if (this.db) return this.db;
-        this.db = await open({
-            filename: this.dbPath,
-            driver: sqlite3.Database
-        });
+
+        this.db = new Database(this.dbPath);
+
         return this.db;
     }
 
     async getUnsynced() {
-        return this.db.all(
-            `SELECT *
-             FROM ${this.table}
-             WHERE synced = 0
-             ORDER BY createdAt ASC`
-        );
+        return this.db.prepare(`
+            SELECT *
+            FROM ${this.table}
+            WHERE synced = 0
+            ORDER BY createdAt ASC
+        `).all();
     }
 
     async markSynced(id) {
-        await this.db.run(`UPDATE ${this.table}
-                           SET synced = 1
-                           WHERE id = ?`, [id]);
+        this.db.prepare(`
+            UPDATE ${this.table}
+            SET synced = 1
+            WHERE id = ?
+        `).run(id);
         console.log(`[DB] 标记已同步 id=${id}`);
     }
 
@@ -106,13 +105,11 @@ class VikaShipment {
 
     async saveData(data) {
         try {
-            await this.db.run(
-                `INSERT INTO ${this.table}
-                     (barcode, cartons, qty, weight, spec, remark, synced, createdAt)
-                 VALUES (?, ?, ?, ?, ?, ?, 0, datetime('now'))`,
-                // [NOTE] 这里包含 remark，保证能保存备注
-                [data.barcode, data.cartons, data.qty, data.weight, data.spec, data.remark]
-            );
+            this.db.prepare(`
+                INSERT INTO ${this.table}
+                    (barcode, cartons, qty, weight, spec, remark, synced, createdAt)
+                VALUES (?, ?, ?, ?, ?, ?, 0, datetime('now'))
+            `).run(data.barcode, data.cartons, data.qty, data.weight, data.spec, data.remark);
             console.log(`[DB] 插入成功 barcode=${data.barcode}`);
         } catch (err) {
             if (err.message.includes("UNIQUE constraint failed")) {

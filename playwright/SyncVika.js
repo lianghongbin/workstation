@@ -1,6 +1,4 @@
-const sqlite3 = require("sqlite3");
-const { open } = require("sqlite");
-const fetch = require("node-fetch");
+const Database = require("better-sqlite3");
 
 class SyncVika {
     constructor(table, dbPath) {
@@ -22,20 +20,29 @@ class SyncVika {
     }
 
     async connectDB() {
-        this.db = await open({
-            filename: this.dbPath,
-            driver: sqlite3.Database
-        });
+        // [ADD] 若已连接则复用，避免重复打开
+        if (this.db) return this.db;
+
+        this.db = new Database(this.dbPath);
+
+        return this.db;
     }
 
     async getUnsynced() {
-        return this.db.all(
-            `SELECT * FROM ${this.table} WHERE synced = 0 ORDER BY createdAt ASC`
-        );
+        return this.db.prepare(`
+            SELECT *
+            FROM ${this.table}
+            WHERE synced = 0
+            ORDER BY createdAt ASC
+        `).all();
     }
 
     async markSynced(id) {
-        await this.db.run(`UPDATE ${this.table} SET synced = 1 WHERE id = ?`, [id]);
+        this.db.prepare(`
+            UPDATE ${this.table}
+            SET synced = 1
+            WHERE id = ?
+        `).run(id);
         console.log(`[DB] 标记已同步 id=${id}`);
     }
 
@@ -58,7 +65,7 @@ class SyncVika {
                     [this.fieldMap.remark]: row.remark
                 };
 
-                const body = JSON.stringify({ records: [{ fields }] });
+                const body = JSON.stringify({records: [{fields}]});
 
                 const res = await fetch(
                     `https://api.vika.cn/fusion/v1/datasheets/${this.datasheetId}/records`,
@@ -96,17 +103,16 @@ class SyncVika {
 
     async saveData(data) {
         try {
-            await this.db.run(
-                `INSERT INTO ${this.table} 
-          (entryDate, customerId, packageNo, packageQty, remark, synced, createdAt) 
-         VALUES (?, ?, ?, ?, ?, 0, datetime('now'))`,
-                [
-                    data.entryDate,
-                    data.customerId,
-                    data.packageNo,
-                    data.packageQty,
-                    data.remark
-                ]
+            this.db.prepare(`
+                INSERT INTO ${this.table}
+                (entryDate, customerId, packageNo, packageQty, remark, synced, createdAt)
+                VALUES (?, ?, ?, ?, ?, 0, datetime('now'))
+            `).run(
+                data.entryDate,
+                data.customerId,
+                data.packageNo,
+                data.packageQty,
+                data.remark
             );
             console.log(`[DB] 插入成功 packageNo=${data.packageNo}`);
         } catch (err) {
